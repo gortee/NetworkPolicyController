@@ -1,5 +1,6 @@
 # NetworkPolicyController
 
+
 ## How to use
 
 ```
@@ -28,3 +29,13 @@ Sync/Add/Update for Pod nsx-demo-7498cd4994-jz7gv
 Sync/Add/Update for Pod nsx-demo-7498cd4994-hqd8z
 Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
 ```
+
+## How to deploy on K8s
+
+Simple Test method:
+
+```
+kubectl run bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
+```
+
+
