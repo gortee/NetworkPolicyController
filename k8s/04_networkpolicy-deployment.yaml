@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: networkpolicycontroller
+  name: networkpolicycontroller
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: networkpolicycontroller      
+  template:
+    metadata:
+      labels:
+        app: networkpolicycontroller 
+    spec:
+      serviceAccountName: networkpolicy-sa
+      containers:
+      - image: docker.io/ytsuboi/networkpolicycontroller:0.1
+        name: networkpolicycontroller
