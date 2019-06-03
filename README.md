@@ -32,6 +32,11 @@ Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
 
 ## How to deploy on K8s
 
+``` 
+$ cd k8s/
+$ kubectl apply -f ./
+```
+
 ## MVP
 -Controller that listens for create/update/delete of pod on any namespace
 
