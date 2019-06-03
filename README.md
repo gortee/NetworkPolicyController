@@ -32,6 +32,13 @@ Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
 
 ## How to deploy on K8s
 
+## MVP
+ *Controller that listens for create/update/delete of pod on any namespace
+ *Creation/update/delete of a 1:1 network policy for each POD
+ *Network Policy will implement a ingress control on the listening port (deny all on everything else)
+ *Network Policy will allow all exgress traffic from the pod
+
+## Test Method
 Simple Test method:
 
 ```
