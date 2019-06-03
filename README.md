@@ -68,9 +68,9 @@ Simple Test method:
 
 ```
 kubectl run bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
-
-kubectl get netpol --all-namespaces -o wide --show-labels
-kubectl get pods --all-namespaces -o wide --show-labels
+kubectl get pod bootcamp -o wide --show-labels
+kubectl get netpol <netpol name> --show-labels
+kubectl descrribe netpol <netpol name>
 ```
 
 
