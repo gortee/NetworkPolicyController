@@ -83,4 +83,27 @@ Test that rules do not break with a service of LoadBalancer
 
     kubectl expose deployment/bootcamp --type=LoadBalancer --port 8080
 
+Test that pod with multiple-ports will get networkpolicy for the ports.
+
+``` 
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name:	nginx-multiple-ports
+  labels:
+    app: nginx-multple-ports
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+    ports:
+    - containerPort: 80
+      name: http
+      protocol: TCP
+    - containerPort: 443
+      name: https
+      protocol: TCP
+EOF
+```
 
