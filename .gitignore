@@ -1,0 +1,8 @@
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+*.DS_Store
+artifacts/
