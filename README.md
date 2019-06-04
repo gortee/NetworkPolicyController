@@ -73,4 +73,14 @@ kubectl get netpol <netpol name> --show-labels
 kubectl descrribe netpol <netpol name>
 ```
 
+Test scale the deployment to ensure the pod based rules work on a scale operation:
+
+    kubectl scale deployments/bootcamp --replicas=4
+
+
+Test that rules do not break with a service of LoadBalancer
+
+
+    kubectl expose deployment/bootcamp --type=LoadBalancer --port 8080
+
 
