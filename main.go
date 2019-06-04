@@ -1,34 +1,40 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"time"
-
-	"k8s.io/klog"
-
 	"k8s.io/api/core/v1"
-	// meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
+	"strings"
+	"time"
+
+	netv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Controller struct {
 	indexer  cache.Indexer
 	queue    workqueue.RateLimitingInterface
 	informer cache.Controller
+	Client *kubernetes.Clientset
 }
 
-func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller) *Controller {
+func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller, client *kubernetes.Clientset) *Controller {
 	return &Controller{
 		informer: informer,
 		indexer:  indexer,
 		queue:    queue,
+		Client: client,
 	}
 }
 
@@ -54,19 +60,88 @@ func (c *Controller) processNextItem() bool {
 // information about the pod to stdout. In case an error happened, it has to simply return the error.
 // The retry logic should not be part of the business logic.
 func (c *Controller) syncToStdout(key string) error {
+	labelValues := strings.Split(key, "/")
 	obj, exists, err := c.indexer.GetByKey(key)
 	if err != nil {
 		klog.Errorf("Fetching object with key %s from store failed with %v", key, err)
 		return err
 	}
 
+	// Define network policy shell
+	np := &netv1.NetworkPolicy{}
+	np.Name = strings.Join(labelValues,"-")
+	np.Namespace = labelValues[0]
+
 	if !exists {
-		// Below we will warm up our cache with a Pod, so that we will see a delete for one pod
-		fmt.Printf("Pod %s does not exist anymore\n", key)
+		// If pod doesn't exist, delete it.  Have to see if pod info actually is returned if it is deleted
+		fmt.Printf("%s does not exist anymore ... deleting associated network policy\n", key)
+		err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Delete(np.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
 	} else {
-		// Note that you also have to check the uid if you have a local controlled resource, which
-		// is dependent on the actual instance, to detect that a Pod was recreated with the same name
-		fmt.Printf("Sync/Add/Update for Pod %s\n", obj.(*v1.Pod).GetName())
+		// Create pod object from obj
+		pod := obj.(*v1.Pod)
+		// Loop through containers and find ports
+		var ports []netv1.NetworkPolicyPort
+		for _,container := range pod.Spec.Containers {
+			// Loop through ports
+			for _,port := range container.Ports {
+				portNum := intstr.FromInt(int(port.ContainerPort))
+				npp := netv1.NetworkPolicyPort{
+					Protocol: &port.Protocol,
+					Port: &portNum,
+				}
+				ports = append(ports, npp)
+			}
+		}
+		ingressRule := netv1.NetworkPolicyIngressRule{
+			Ports: ports,
+		}
+		egressRule := netv1.NetworkPolicyEgressRule{
+			Ports: ports,
+		}
+		np.Spec.Ingress = []netv1.NetworkPolicyIngressRule{ingressRule}
+		np.Spec.Egress = []netv1.NetworkPolicyEgressRule{egressRule}
+		np.Spec.PodSelector = metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"autoNetPolicy" : np.Name,
+			},
+		}
+		// Decide to create or update by trying to get the existing
+		_, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Update(np)
+		if err != nil {
+			fmt.Println("Creating NetworkPolicy for pod:", pod.Name)
+			np, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Create(np)
+		} else {
+			fmt.Println("Updating NetworkPolicy for pod:", pod.Name)
+			np, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Update(np)
+		}
+		if err != nil {
+			return err
+		}
+		// Put label on the pod if it doesn't exist
+		if _, ok := pod.Labels["autoNetPolicy"]; !ok {
+			fmt.Println("Adding label to pod ", pod.Name)
+			// Build label metadata
+			newLabel := map[string]map[string]map[string]string{
+				"metadata" : map[string]map[string]string{
+					"labels" : map[string]string{
+						"autoNetPolicy" : np.Name,
+					},
+				},
+			}
+			data, err := json.Marshal(newLabel)
+			if err != nil {
+				return err
+			}
+			// Add a label to the pod
+			pod, err = c.Client.CoreV1().Pods(pod.Namespace).Patch(pod.Name, types.MergePatchType, data, "")
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 	return nil
 }
@@ -178,7 +253,7 @@ func main() {
 		},
 	}, cache.Indexers{})
 
-	controller := NewController(queue, indexer, informer)
+	controller := NewController(queue, indexer, informer, clientset)
 
 	// We can now warm up the cache for initial synchronization.
 	// Let's suppose that we knew about a pod "mypod" on our last run, therefore add it to the cache.
