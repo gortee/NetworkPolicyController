@@ -4,30 +4,28 @@
 ## How to use
 
 ```
-$ ./NetworkPolicyController -h
-Usage of ./NetworkPolicyController:
-  -kubeconfig string
+$ ./autonetpol -h
+Usage of ./autonetpol:
+  --kubeconfig string
    absolute path to the kubeconfig file
-  -master string
+  --master string
    master url
+  --namespaces
+   comma separated list of namespaces to watch/process 
 ```
 
 Example output
 ```
-$ ./NetworkPolicyController  -kubeconfig ~/.kube/config
+$ ./autonetpol --master=https://10.2.2.2:8443 --kubeconfig=/root/.kube/config --namespaces=acme-air,netpolicy-test
 Starting NetworkPolicyController controller
-Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
-Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
-Sync/Add/Update for Pod nsx-demo-7498cd4994-hqd8z
-Sync/Add/Update for Pod nsx-demo-7498cd4994-jz7gv
-Sync/Add/Update for Pod nsx-demo-7498cd4994-hqd8z
-Sync/Add/Update for Pod nsx-demo-7498cd4994-jz7gv
-Sync/Add/Update for Pod nsx-demo-7498cd4994-hqd8z
-Sync/Add/Update for Pod nsx-demo-7498cd4994-jz7gv
-Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
-Sync/Add/Update for Pod nsx-demo-7498cd4994-jz7gv
-Sync/Add/Update for Pod nsx-demo-7498cd4994-hqd8z
-Sync/Add/Update for Pod nsx-demo-7498cd4994-9jgc7
+Waiting for pods
+Starting NetworkPolicyController controller for namespace:  acme-air
+Starting NetworkPolicyController controller for namespace:  netpolicy-test
+Updating NetworkPolicy for:  acme-air-acme-web-c6bbf95d5-wlrwf
+Updating NetworkPolicy for:  netpolicy-test-acme-web-5c678788b7-pfjmq
+Updating NetworkPolicy for:  netpolicy-test-nginx
+Updating NetworkPolicy for:  acme-air-mongodb-0
+Updating NetworkPolicy for:  netpolicy-test-mongodb-0
 ```
 
 ## How to deploy on K8s
