@@ -111,10 +111,10 @@ func (c *Controller) syncToStdout(key string) error {
 		// Decide to create or update by trying to get the existing
 		_, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Update(np)
 		if err != nil {
-			fmt.Println("Creating NetworkPolicy for pod:", pod.Name)
+			fmt.Println("Creating NetworkPolicy for: ", np.Name)
 			np, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Create(np)
 		} else {
-			fmt.Println("Updating NetworkPolicy for pod:", pod.Name)
+			fmt.Println("Updating NetworkPolicy for: ", np.Name)
 			np, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Update(np)
 		}
 		if err != nil {
@@ -122,7 +122,7 @@ func (c *Controller) syncToStdout(key string) error {
 		}
 		// Put label on the pod if it doesn't exist
 		if _, ok := pod.Labels["autoNetPolicy"]; !ok {
-			fmt.Println("Adding label to pod ", pod.Name)
+			fmt.Println("Adding label to: ", np.Name)
 			// Build label metadata
 			newLabel := map[string]map[string]map[string]string{
 				"metadata" : map[string]map[string]string{
@@ -203,10 +203,14 @@ func (c *Controller) runWorker() {
 func main() {
 	var kubeconfig string
 	var master string
+	var namespaces string
 
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.StringVar(&master, "master", "", "master url")
+	flag.StringVar(&namespaces, "namespaces", "", "command separated list of namespaces")
 	flag.Parse()
+
+	nameSpaces := strings.Split(namespaces,",")
 
 	// creates the connection
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
@@ -220,57 +224,55 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	// create the pod watcher
-	podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", "", fields.Everything())
+	loop := make(chan int, len(nameSpaces))
+	// Should create a thread for each namespace passed in
+	for _,nameSpace := range nameSpaces {
+		go func(ns string) {
+			// create the pod watcher
+			podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", ns, fields.Everything())
 
-	// create the workqueue
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			// create the workqueue
+			queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
-	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
-	// whenever the cache is updated, the pod key is added to the workqueue.
-	// Note that when we finally process the item from the workqueue, we might see a newer version
-	// of the Pod than the version which was responsible for triggering the update.
-	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		UpdateFunc: func(old interface{}, new interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(new)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
-				queue.Add(key)
-			}
-		},
-	}, cache.Indexers{})
+			// Bind the workqueue to a cache with the help of an informer. This way we make sure that
+			// whenever the cache is updated, the pod key is added to the workqueue.
+			// Note that when we finally process the item from the workqueue, we might see a newer version
+			// of the Pod than the version which was responsible for triggering the update.
+			indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
+				AddFunc: func(obj interface{}) {
+					key, err := cache.MetaNamespaceKeyFunc(obj)
+					if err == nil {
+						queue.Add(key)
+					}
+				},
+				UpdateFunc: func(old interface{}, new interface{}) {
+					key, err := cache.MetaNamespaceKeyFunc(new)
+					if err == nil {
+						queue.Add(key)
+					}
+				},
+				DeleteFunc: func(obj interface{}) {
+					// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+					// key function.
+					key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+					if err == nil {
+						queue.Add(key)
+					}
+				},
+			}, cache.Indexers{})
 
-	controller := NewController(queue, indexer, informer, clientset)
-
-	// We can now warm up the cache for initial synchronization.
-	// Let's suppose that we knew about a pod "mypod" on our last run, therefore add it to the cache.
-	// If this pod is not there anymore, the controller will be notified about the removal after the
-	// cache has synchronized.
-	// indexer.Add(&v1.Pod{
-	// 	ObjectMeta: meta_v1.ObjectMeta{
-	// 		Name:      "mypod",
-	// 		Namespace: v1.NamespaceDefault,
-	// 	},
-	// })
-	fmt.Printf("Starting NetworkPolicyController controller\n")
-	// Now let's start the controller
-	stop := make(chan struct{})
-	defer close(stop)
-	go controller.Run(1, stop)
-
-	// Wait forever
-	select {}
+			controller := NewController(queue, indexer, informer, clientset)
+			fmt.Println("Starting NetworkPolicyController controller for namespace: ", ns)
+			// Now let's start the controller
+			stop2 := make(chan struct{})
+			defer close(stop2)
+			go controller.Run(1, stop2)
+			// Wait forever
+			select {}
+		}(nameSpace)
+	}
+	for len(loop) < len(nameSpaces) {
+		fmt.Println("Waiting for pods")
+		time.Sleep(1 * time.Minute)
+	}
 }
