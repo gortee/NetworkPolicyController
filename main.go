@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	"log"
 	"strings"
 	"time"
 
@@ -102,7 +103,7 @@ func (c *Controller) syncToStdout(key string) error {
 			Ports: ports,
 		}
 		np.Spec.Ingress = []netv1.NetworkPolicyIngressRule{ingressRule}
-		np.Spec.Egress = []netv1.NetworkPolicyEgressRule{egressRule}
+		#np.Spec.Egress = []netv1.NetworkPolicyEgressRule{egressRule}
 		np.Spec.PodSelector = metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"autoNetPolicy" : np.Name,
@@ -210,6 +211,9 @@ func main() {
 	flag.StringVar(&namespaces, "namespaces", "", "command separated list of namespaces")
 	flag.Parse()
 
+	if namespaces == "" {
+		log.Fatalln("--namespaces not specified with a comma separated list of namespaces")
+	}
 	nameSpaces := strings.Split(namespaces,",")
 
 	// creates the connection
