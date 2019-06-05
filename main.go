@@ -103,7 +103,7 @@ func (c *Controller) syncToStdout(key string) error {
 			Ports: ports,
 		}
 		np.Spec.Ingress = []netv1.NetworkPolicyIngressRule{ingressRule}
-		#np.Spec.Egress = []netv1.NetworkPolicyEgressRule{egressRule}
+		//np.Spec.Egress = []netv1.NetworkPolicyEgressRule{egressRule}
 		np.Spec.PodSelector = metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"autoNetPolicy" : np.Name,
