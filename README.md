@@ -105,3 +105,25 @@ spec:
 EOF
 ```
 
+Test a pod with multiple containers each with their own port.
+
+``` 
+cat <<EOF | kubectl apply -f -
+kind: Pod
+metadata:
+  name: mc
+  labels:
+    app: mc
+spec:
+  containers:
+  - name: webapp
+    image: gcr.io/google-samples/kubernetes-bootcamp:v1
+    ports:
+    - containerPort: 8080
+  - name: nginx
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+EOF
+```
+
