@@ -16,4 +16,5 @@ RUN go build -o NetworkPolicyController
 FROM alpine
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /go/src/github.com/gortee/NetworkPolicyController/NetworkPolicyController /NetworkPolicyController
-ENTRYPOINT ["/NetworkPolicyController"]
+COPY ./scripts/docker-entrypoint.sh .
+ENTRYPOINT ["./docker-entrypoint.sh"]

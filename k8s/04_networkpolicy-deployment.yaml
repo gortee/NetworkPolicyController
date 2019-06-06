@@ -16,5 +16,9 @@ spec:
     spec:
       serviceAccountName: networkpolicy-sa
       containers:
-      - image: docker.io/ytsuboi/networkpolicycontroller:0.2
+      - image: docker.io/ytsuboi/networkpolicycontroller:0.3
         name: networkpolicycontroller
+        env:
+        - name: NAMESPACES
+          value: 'default'
+      
