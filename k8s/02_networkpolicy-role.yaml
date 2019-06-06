@@ -9,3 +9,6 @@ rules:
 - apiGroups: ["extensions"]
   resources: ["*"]
   verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
