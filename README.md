@@ -108,7 +108,8 @@ EOF
 Test a pod with multiple containers each with their own port.
 
 ``` 
-cat <<EOF | kubectl apply -f -
+cat <<EOF | kubectl apply -f 
+apiVersion: v1
 kind: Pod
 metadata:
   name: mc
