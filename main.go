@@ -121,6 +121,7 @@ func (c *Controller) syncToStdout(key string) error {
 			np, err = c.Client.NetworkingV1().NetworkPolicies(np.Namespace).Update(np)
 		}
 		if err != nil {
+			fmt.Println("Error during create/update of Network policy: ", err)
 			return err
 		}
 		// Put label on the pod if it doesn't exist
